@@ -4,9 +4,20 @@ import numpy as np
 import joblib
 
 # 1. Load the Saved Model and Scaler
-# We load the files we saved earlier so we don't have to retrain every time.
-model = joblib.load('saved_models/lr_model.pkl')
-scaler = joblib.load('saved_models/scaler.pkl')
+# This gets the absolute path of the current file (app.py)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the full paths to the models
+model_path = os.path.join(current_dir, 'saved_models', 'lr_model.pkl')
+scaler_path = os.path.join(current_dir, 'saved_models', 'scaler.pkl')
+
+# Load the Saved Model and Scaler using the full paths
+try:
+    model = joblib.load(model_path)
+    scaler = joblib.load(scaler_path)
+except FileNotFoundError:
+    st.error(f"Error: Model files not found at {model_path}")
+    st.stop()
 
 # 2. Define the Prediction Function
 def predict_performance(hours, scores, activities, sleep, papers):
