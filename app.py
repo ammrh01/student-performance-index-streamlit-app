@@ -21,32 +21,35 @@ except FileNotFoundError:
 
 # 2. Define the Prediction Function
 def predict_performance(hours, scores, activities, sleep, papers):
-    # Convert 'Yes'/'No' to 1/0
+    # 1. Convert 'Yes'/'No' to 1/0
     act_numeric = 1 if activities == "Yes" else 0
     
-    # Create a dataframe for input
-    # Note: We must ensure columns match the training order exactly
+    # 2. Create the DataFrame with the EXACT column names from training
+    # The model expects "Extracurricular Activities_Yes", NOT "Extracurricular Activities"
     input_data = pd.DataFrame({
         'Hours Studied': [hours],
         'Previous Scores': [scores],
-        'Extracurricular Activities': [act_numeric], # Note: Check if your model expects 'Extracurricular Activities_Yes' or just the raw column if you processed it differently. 
-                                                     # Based on your previous code, you used get_dummies which creates 'Extracurricular Activities_Yes'.
-                                                     # Let's align with that:
         'Extracurricular Activities_Yes': [act_numeric],
         'Sleep Hours': [sleep],
         'Sample Question Papers Practiced': [papers]
     })
     
-    # Ensure we strictly select only the columns the model expects
-    # (This handles the dummy variable naming convention)
-    expected_cols = ['Hours Studied', 'Previous Scores', 'Extracurricular Activities_Yes', 'Sleep Hours', 'Sample Question Papers Practiced']
-    input_data = input_data[expected_cols]
+    # 3. Reorder columns to match the training order strictly
+    # This prevents the "Feature names must be in the same order" error
+    expected_order = [
+        'Hours Studied', 
+        'Previous Scores', 
+        'Extracurricular Activities_Yes', 
+        'Sleep Hours', 
+        'Sample Question Papers Practiced'
+    ]
+    input_data = input_data[expected_order]
 
-    # Scale the numerical columns using the loaded scaler
+    # 4. Scale the numerical columns
     cols_to_scale = ['Hours Studied', 'Previous Scores']
     input_data[cols_to_scale] = scaler.transform(input_data[cols_to_scale])
 
-    # Predict
+    # 5. Predict
     prediction = model.predict(input_data)[0]
     return prediction
 
