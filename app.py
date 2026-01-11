@@ -4,29 +4,25 @@ import numpy as np
 import joblib
 import os
 
-# 1. Load the Saved Model and Scaler
-# This gets the absolute path of the current file (app.py)
+# --- 1. Dynamic Path Loading ---
+# This ensures the app finds the models no matter where it is running
 current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the full paths to the models
 model_path = os.path.join(current_dir, 'saved_models', 'lr_model.pkl')
 scaler_path = os.path.join(current_dir, 'saved_models', 'scaler.pkl')
 
-# Load the Saved Model and Scaler using the full paths
 try:
     model = joblib.load(model_path)
     scaler = joblib.load(scaler_path)
 except FileNotFoundError:
-    st.error(f"Error: Model files not found at {model_path}")
+    st.error(f"Error: Model files not found. Check if {model_path} exists.")
     st.stop()
 
-# 2. Define the Prediction Function
+# --- 2. Prediction Function with Auto-Ordering ---
 def predict_performance(hours, scores, activities, sleep, papers):
-    # 1. Convert 'Yes'/'No' to 1/0
+    # Convert 'Yes'/'No' to 1/0
     act_numeric = 1 if activities == "Yes" else 0
     
-    # 2. Create the DataFrame with the EXACT column names from training
-    # The model expects "Extracurricular Activities_Yes", NOT "Extracurricular Activities"
+    # Create the DataFrame with all potential columns
     input_data = pd.DataFrame({
         'Hours Studied': [hours],
         'Previous Scores': [scores],
@@ -35,22 +31,24 @@ def predict_performance(hours, scores, activities, sleep, papers):
         'Sample Question Papers Practiced': [papers]
     })
     
-    # 3. Reorder columns to match the training order strictly
-    # This prevents the "Feature names must be in the same order" error
-    expected_order = [
-        'Hours Studied', 
-        'Previous Scores', 
-        'Extracurricular Activities_Yes', 
-        'Sleep Hours', 
-        'Sample Question Papers Practiced'
-    ]
-    input_data = input_data[expected_order]
+    # --- THE FIX: Ask the model for the correct order ---
+    try:
+        # 'feature_names_in_' is saved inside the model during training
+        expected_cols = model.feature_names_in_
+        input_data = input_data[expected_cols]
+    except AttributeError:
+        st.error("Error: The model does not have feature names saved. Please re-train using scikit-learn v1.0+")
+        st.stop()
+    except KeyError as e:
+        st.error(f"Error: Missing column {e}. The model expects: {expected_cols}")
+        st.stop()
 
-    # 4. Scale the numerical columns
+    # Scale the numerical columns
+    # We use the loaded scaler to transform only the specific columns
     cols_to_scale = ['Hours Studied', 'Previous Scores']
     input_data[cols_to_scale] = scaler.transform(input_data[cols_to_scale])
 
-    # 5. Predict
+    # Predict
     prediction = model.predict(input_data)[0]
     return prediction
 
@@ -60,11 +58,10 @@ def get_grade_classification(score):
     elif score >= 40: return "Average"
     else: return "Poor"
 
-# 3. Streamlit UI Layout
+# --- 3. Streamlit UI Layout ---
 st.title("Student Performance Predictor")
 st.write("Enter the student's details below to predict their performance index.")
 
-# Create columns for a cleaner layout
 col1, col2 = st.columns(2)
 
 with col1:
@@ -76,21 +73,21 @@ with col2:
     sleep = st.slider("Sleep Hours", 0, 10, 7)
     papers = st.slider("Sample Papers Practiced", 0, 10, 5)
 
-# Prediction Button
 if st.button("Predict Performance"):
+    # Run the prediction
     result = predict_performance(hours, scores, activities, sleep, papers)
     classification = get_grade_classification(result)
     
+    # Display Result
     st.success(f"Predicted Index: {result:.2f}")
     st.info(f"Classification: {classification}")
     
-    # Optional: Logic to show specific advice based on score
     if classification == "Excellent":
+        st.balloons()
         st.write("🌟 Great job! Keep up the consistency.")
     elif classification == "Poor":
         st.error("⚠️ This student may need extra help and study time.")
 
-# Footer info
 st.markdown("---")
 st.markdown("""
 **Grading Guidelines:**
