@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import os
 
 # 1. Load the Saved Model and Scaler
 # This gets the absolute path of the current file (app.py)
